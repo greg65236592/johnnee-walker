@@ -1,0 +1,153 @@
+<html lang="en">
+
+<head>
+    <meta name="google-signin-scope"
+        content="profile email https://www.googleapis.com/auth/fitness.activity.write https://www.googleapis.com/auth/fitness.activity.read">
+    <meta name="google-signin-client_id"
+        content="248359185256-schorujk1vbnq8cit3afo3o3sahevjum.apps.googleusercontent.com">
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+</head>
+
+<body>
+    <div class="g-signin2" data-onsuccess="onSignIn" data-theme="dark"></div>
+    <br>
+    <div>
+        I want to walk:
+        <input type="number" id="stepAmount" value=0>
+        steps!
+        <button onclick="addStepCount()">Call me Johnny</button>
+    </div>
+    <script>
+        var token;
+        function onSignIn(googleUser) {
+            // Useful data for your client-side scripts:
+            var profile = googleUser.getBasicProfile();
+            console.log("ID: " + profile.getId()); // Don't send this directly to your server!
+            console.log('Full Name: ' + profile.getName());
+            console.log('Given Name: ' + profile.getGivenName());
+            console.log('Family Name: ' + profile.getFamilyName());
+            console.log("Image URL: " + profile.getImageUrl());
+            console.log("Email: " + profile.getEmail());
+
+            // The ID token you need to pass to your backend:
+            token = googleUser.getAuthResponse().access_token;
+            console.log("Access Token: " + token);
+        }
+        async function addStepCount() {
+            // get or create datasource
+            const dataSourceId = await getDataSourceId()
+            console.debug(`my datasource id: ${dataSourceId}`)
+
+            const istepAmountInputId = 'stepAmount'
+            const stepAmount = document.getElementById(istepAmountInputId).value;
+            if (stepAmount < 1) {
+                alert("Please enter you desired steps.")
+                return;
+            }
+
+            const createWorkoutRes = await createWorkoutRecord(dataSourceId, stepAmount)
+            if(createWorkoutRes.ok && createWorkoutRes.status === 200) {
+                alert(`Great, you've just walked ${stepAmount} steps! Good job.`)
+            } else {
+                alert(`Walk failed, Can't you even walk properly?`)
+            }
+            document.getElementById(istepAmountInputId).value = 0
+        }
+        // post data source if not found
+        async function getDataSourceId() {
+            const projectNum = 248359185256
+            type = 'derived'
+            dataName = 'com.google.step_count.delta'
+            deviceUid = 9478
+            dataStreamName = 'johnniewalker'
+            manufacturer = 'music_rider'
+            deviceModel = 'T10'
+            dataStreamId = `${type}:${dataName}:${projectNum}:${manufacturer}:${deviceModel}:${deviceUid}:${dataStreamName}`
+            const dataSourceRes = await sendRequest('GET', `https://www.googleapis.com/fitness/v1/users/me/dataSources/${dataStreamId}`)
+            if (dataSourceRes.ok && dataSourceRes.status === 200) {
+                let dataSourceResBody = await dataSourceRes.json()
+                return dataSourceResBody.dataStreamId
+            } else {
+                // create dataSource if not existed
+                const dataSourceData = {
+                    dataStreamName,
+                    type,
+                    "application": {
+                        "detailsUrl": "http://example.com",
+                        "name": "johnnie walker",
+                        "version": "1"
+                    },
+                    "dataType": {
+                        "field": [
+                            {
+                                "name": "steps",
+                                "format": "integer"
+                            }
+                        ],
+                        "name": dataName
+                    },
+                    "device": {
+                        manufacturer,
+                        "model": deviceModel,
+                        "type": "tablet",
+                        "uid": deviceUid,
+                        "version": "1.0"
+                    }
+                }
+                let createDataSourceRes = await sendRequest('POST', 'https://www.googleapis.com/fitness/v1/users/me/dataSources', dataSourceData)
+                console.debug(createDataSourceRes)
+                let createDataSourceResBody = await createDataSourceRes.json()
+                if (createDataSourceRes.ok) {
+                    console.debug(createDataSourceResBody)
+                    return createDataSourceResBody.dataStreamId
+                } else {
+                    alert(`Create datasource failed, contact the developer...............?\n${JSON.stringify(createDataSourceResBody)}`)
+                    throw new Error("create datasource failed")
+                }
+            }
+        }
+        function createWorkoutRecord(dataStreamId, stepAmount) {
+            const dataName = 'com.google.step_count.delta'
+            now = new Date()
+            endNanos = now.getTime() * 1000000
+            startNaos = now.setHours(now.getHours() - 1) * 1000000;
+            req = {
+                "minStartTimeNs": startNaos,
+                "maxEndTimeNs": endNanos,
+                "dataSourceId": dataStreamId,
+                "point": [
+                    {
+                        "startTimeNanos": startNaos,
+                        "endTimeNanos": endNanos,
+                        "dataTypeName": dataName,
+                        "value": [
+                            {
+                                "intVal": stepAmount
+                            }
+                        ]
+                    }
+                ]
+            }
+            return sendRequest('PATCH', `https://www.googleapis.com/fitness/v1/users/me/dataSources/${dataStreamId}/datasets/${startNaos}-${endNanos}`, req)
+        }
+        function sendRequest(method, url, data) {
+            // Default options are marked with *
+            const options = {
+                method, // *GET, POST, PUT, DELETE, etc.
+                mode: 'cors', // no-cors, *cors, same-origin
+                cache: 'no-cache', // *default, no-cache, reload, force-cache, only-if-cached
+                credentials: 'same-origin', // include, *same-origin, omit
+                headers: {
+                    'Content-Type': 'application/json; charset="utf-8',
+                    'Authorization': `Bearer ${token}`
+                },
+                redirect: 'follow', // manual, *follow, error
+                referrerPolicy: 'no-referrer', // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
+                body: JSON.stringify(data) // body data type must match "Content-Type" header
+            }
+            return fetch(url, options)
+        }
+    </script>
+</body>
+
+</html>
