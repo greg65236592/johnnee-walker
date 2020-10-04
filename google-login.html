@@ -13,9 +13,14 @@
     <br>
     <div>
         I want to walk:
-        <input type="number" id="stepAmount" value=0>
+        <input type="number" id="step_amount" value=0>
         steps!
         <button onclick="addStepCount()">Call me Johnny</button>
+    </div>
+    <br>
+    <div>
+        <pre id="code_block">
+        </pre>
     </div>
     <script>
         var token;
@@ -32,37 +37,53 @@
             // The ID token you need to pass to your backend:
             token = googleUser.getAuthResponse().access_token;
             console.log("Access Token: " + token);
+
+            // Show current activities
+            showActivities()
+        }
+        async function showActivities() {
+            const activitiesBlockId = 'code_block'
+            const now = new Date(),
+                utcTime = now.getTime() + now.getTimezoneOffset() * 60 * 1000,
+                endNanos = utcTime * 1000000,
+                startNaos = (utcTime - 24 * 60 * 60 * 1000) * 1000000
+            // get or create datasource
+            const dataSourceId = await getDataSourceId()
+            const dataSetRes = await sendRequest('GET', `https://www.googleapis.com/fitness/v1/users/me/dataSources/${dataSourceId}/datasets/${startNaos}-${endNanos}`)
+            const activitiesJson = await dataSetRes.json()
+            document.getElementById(activitiesBlockId).innerHTML = JSON.stringify(activitiesJson, null, 2)
         }
         async function addStepCount() {
             // get or create datasource
             const dataSourceId = await getDataSourceId()
             console.debug(`my datasource id: ${dataSourceId}`)
 
-            const istepAmountInputId = 'stepAmount'
-            const stepAmount = document.getElementById(istepAmountInputId).value;
+            const stepAmountInputId = 'step_amount'
+            const stepAmount = document.getElementById(stepAmountInputId).value
             if (stepAmount < 1) {
                 alert("Please enter you desired steps.")
                 return;
             }
 
             const createWorkoutRes = await createWorkoutRecord(dataSourceId, stepAmount)
-            if(createWorkoutRes.ok && createWorkoutRes.status === 200) {
+            if (createWorkoutRes.ok && createWorkoutRes.status === 200) {
                 alert(`Great, you've just walked ${stepAmount} steps! Good job.`)
             } else {
                 alert(`Walk failed, Can't you even walk properly?`)
             }
-            document.getElementById(istepAmountInputId).value = 0
+            showActivities()
+            document.getElementById(stepAmountInputId).value = 0
         }
         // post data source if not found
         async function getDataSourceId() {
-            const projectNum = 248359185256
-            type = 'derived'
-            dataName = 'com.google.step_count.delta'
-            deviceUid = 9478
-            dataStreamName = 'johnniewalker'
-            manufacturer = 'music_rider'
-            deviceModel = 'T10'
-            dataStreamId = `${type}:${dataName}:${projectNum}:${manufacturer}:${deviceModel}:${deviceUid}:${dataStreamName}`
+            const projectNum = 248359185256,
+                type = 'derived',
+                dataName = 'com.google.step_count.delta',
+                deviceUid = 9478,
+                dataStreamName = 'johnniewalker',
+                manufacturer = 'music_rider',
+                deviceModel = 'T10',
+                dataStreamId = `${type}:${dataName}:${projectNum}:${manufacturer}:${deviceModel}:${deviceUid}:${dataStreamName}`
             const dataSourceRes = await sendRequest('GET', `https://www.googleapis.com/fitness/v1/users/me/dataSources/${dataStreamId}`)
             if (dataSourceRes.ok && dataSourceRes.status === 200) {
                 let dataSourceResBody = await dataSourceRes.json()
@@ -107,10 +128,11 @@
             }
         }
         function createWorkoutRecord(dataStreamId, stepAmount) {
-            const dataName = 'com.google.step_count.delta'
-            now = new Date()
-            endNanos = now.getTime() * 1000000
-            startNaos = now.setHours(now.getHours() - 1) * 1000000;
+            const dataName = 'com.google.step_count.delta',
+                now = new Date(),
+                utcTime = now.getTime() + now.getTimezoneOffset() * 60 * 1000,
+                endNanos = utcTime * 1000000,
+                startNaos = (utcTime - 1 * 60 * 60 * 1000) * 1000000
             req = {
                 "minStartTimeNs": startNaos,
                 "maxEndTimeNs": endNanos,
