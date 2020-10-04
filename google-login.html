@@ -44,9 +44,8 @@
         async function showActivities() {
             const activitiesBlockId = 'code_block'
             const now = new Date(),
-                utcTime = now.getTime() + now.getTimezoneOffset() * 60 * 1000,
-                endNanos = utcTime * 1000000,
-                startNaos = (utcTime - 24 * 60 * 60 * 1000) * 1000000
+                endNanos = now * 1000000,
+                startNaos = (now - 24 * 60 * 60 * 1000) * 1000000
             // get or create datasource
             const dataSourceId = await getDataSourceId()
             const dataSetRes = await sendRequest('GET', `https://www.googleapis.com/fitness/v1/users/me/dataSources/${dataSourceId}/datasets/${startNaos}-${endNanos}`)
@@ -77,9 +76,9 @@
         // post data source if not found
         async function getDataSourceId() {
             const projectNum = 248359185256,
-                type = 'derived',
+                type = 'raw',
                 dataName = 'com.google.step_count.delta',
-                deviceUid = 9478,
+                deviceUid = 9487,
                 dataStreamName = 'johnniewalker',
                 manufacturer = 'music_rider',
                 deviceModel = 'T10',
@@ -130,9 +129,8 @@
         function createWorkoutRecord(dataStreamId, stepAmount) {
             const dataName = 'com.google.step_count.delta',
                 now = new Date(),
-                utcTime = now.getTime() + now.getTimezoneOffset() * 60 * 1000,
-                endNanos = utcTime * 1000000,
-                startNaos = (utcTime - 1 * 60 * 60 * 1000) * 1000000
+                endNanos = now * 1000000,
+                startNaos = (now - 1 * 60 * 60 * 1000) * 1000000
             req = {
                 "minStartTimeNs": startNaos,
                 "maxEndTimeNs": endNanos,
